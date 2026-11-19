@@ -33,6 +33,10 @@ At the end of Part 1 two credentials were in hand:
 
 Both were validated against SMB and WinRM with mixed results, and the report was honest about it: the `jon.snow` password did not authenticate over SMB. That negative result was the loose thread this part pulls on.
 
+For the record, the service account password fell to a dictionary attack in seconds — the whole domain dump that follows sits behind one word:
+
+![John recovering the jon.snow password](../assets/23-john-jon-crack.png)
+
 ## 2. Credential validation, revisited
 
 Before building anything on top of a credential, it is worth being precise about *which* failure you are looking at. Re-running `jon.snow` against three protocols produces three different answers:
