@@ -1,67 +1,101 @@
 <p align="center">
   <img src="https://img.shields.io/badge/lab-GOAD--Light-6d28d9?style=flat-square" alt="lab">
   <img src="https://img.shields.io/badge/Active%20Directory-Kerberos%20%C2%B7%20SMB%20%C2%B7%20LDAP-0e7490?style=flat-square" alt="ad">
-  <img src="https://img.shields.io/badge/phase-1%20of%202-db2777?style=flat-square" alt="phase">
+  <img src="https://img.shields.io/badge/parts-1%20of%202%20complete-2ea043?style=flat-square" alt="parts">
 </p>
 
-<h1 align="center">GOAD-Light — AD Attack Path<br><sub>Part 1: From Recon to Credential Access</sub></h1>
+<h1 align="center">GOAD-Light — From Empty Subnet to Golden Ticket</h1>
 
 <p align="center">
-  A hands-on write-up of my walkthrough through <b>GOAD-Light</b> (Game of Active Directory by Orange Cyberdefense):<br>
-  from an empty <code>nmap</code> range to valid domain credentials, with commands, output analysis and defensive recommendations.
+  A hands-on write-up of <b>GOAD-Light</b> (Game of Active Directory by Orange Cyberdefense):<br>
+  an isolated lab with three hosts and two domains, compromised end to end<br>
+  — with commands, analysis of every output, MITRE ATT&CK mapping, remediation and detection.
 </p>
 
 ---
 
 ## TL;DR
 
-Three hosts, two domains, and both domain controllers answering unauthenticated requests — the whole path below was walked without a single credential until the very end:
+No exploit, no CVE, no malware. A single unprivileged domain user was enough:
 
-- **Recon** — `nxc smb 192.168.56.0/24` mapped three hosts across `sevenkingdoms.local` and `north.sevenkingdoms.local`, and surfaced two weaknesses at once: `CASTELBLACK` has **SMB signing disabled** (NTLM Relay candidate) and both DCs allow **null sessions**.
-- **Enumeration** — anonymous `nxc smb --users` returned ten accounts, including `samwell.tarly`, whose description field literally reads `Password : Heartsbane`. No exploit needed to learn a password.
-- **Credential access** — **AS-REP Roasting** against `brandon.stark` produced a crackable `$krb5asrep$` hash → valid domain credentials.
-- **Kerberoasting** — with those credentials, a TGS for `jon.snow` was requested and cracked offline with rockyou.
-- **Honest negative result** — the cracked `jon.snow` password did **not** authenticate (`STATUS_LOGON_FAILURE`), which is documented in the report rather than glossed over.
+| Step | What | Result |
+|---|---|---|
+| **Recon** | `nxc smb` across `192.168.56.0/24` | 3 hosts, 2 domains, SMB signing off on `CASTELBLACK`, null sessions on both DCs |
+| **Enumeration** | anonymous `--users` | 10 accounts; one carries its password in the AD `Description` field |
+| **Credential access** | AS-REP Roasting → Kerberoasting | `brandon.stark` → domain credentials → `jon.snow` → `iknownothing` |
+| **Machine account** | `MachineAccountQuota = 10` | created `TestPC$` as a normal user |
+| **Delegation** | RBCD | local `Administrator` hash on `WINTERFELL` |
+| **Domain secrets** | DCSync | full `north` dump, including `krbtgt` |
+| **Forest** | Golden Ticket + Enterprise Admins SID | `KINGSLANDING` (forest root) — `Pwn3d!` |
 
 ## Lab at a glance
 
 | Host | IP | Domain | Role | SMB signing | Null auth |
 |---|---|---|---|---|---|
-| KINGSLANDING | `192.168.56.10` | `sevenkingdoms.local` | Domain Controller | ✅ | ✅ |
-| WINTERFELL | `192.168.56.11` | `north.sevenkingdoms.local` | Domain Controller | ✅ | ✅ |
+| KINGSLANDING | `192.168.56.10` | `sevenkingdoms.local` | Forest root DC | ✅ | ✅ |
+| WINTERFELL | `192.168.56.11` | `north.sevenkingdoms.local` | Child DC | ✅ | ✅ |
 | CASTELBLACK | `192.168.56.22` | `north.sevenkingdoms.local` | Member server | ❌ | ❌ |
+
+## Attack path
+
+```mermaid
+flowchart LR
+    A["Anonymous SMB<br/>null sessions"] --> B["10 usernames"]
+    B --> C["AS-REP Roasting<br/>brandon.stark"]
+    C --> D["iseedeadpeople"]
+    D --> E["Kerberoasting<br/>jon.snow"]
+    E --> F["iknownothing"]
+    F --> G["MachineAccountQuota = 10"]
+    G --> H["TestPC$ machine account"]
+    H --> I["RBCD"]
+    I --> J["Local Administrator hash"]
+    J --> K["DCSync"]
+    K --> L["krbtgt"]
+    L --> M["Golden Ticket<br/>+ EA SID 519"]
+    M --> N["KINGSLANDING<br/>forest root"]
+```
 
 ## Findings
 
-| # | Finding | Severity |
-|---|---|---|
-| 1 | SMB signing disabled — NTLM Relay candidate (`CASTELBLACK`) | High |
-| 2 | Kerberos pre-authentication disabled (`brandon.stark`) | High |
-| 3 | Kerberoastable service account with a dictionary password (`jon.snow`) | High |
-| 4 | Weak password policy — rockyou cracks domain credentials | High |
-| 5 | Anonymous SMB sessions allow user enumeration (both DCs) | Medium |
-| 6 | Password hint exposed in the account description (`samwell.tarly`) | Medium |
-| 7 | LLMNR/NBT-NS/WPAD answered — interception path | Medium |
+| # | Finding | Severity | Affected | MITRE ATT&CK |
+|---|---|---|---|---|
+| 1 | SMB signing disabled — NTLM Relay candidate | **High** | `CASTELBLACK` | T1557.001 |
+| 2 | Kerberos pre-authentication disabled | **High** | `brandon.stark` | T1558.004 |
+| 3 | Kerberoastable service account with a dictionary password | **High** | `jon.snow` | T1558.003 |
+| 4 | Write access on a computer object enables RBCD | **High** | computer objects | T1098 |
+| 5 | `MachineAccountQuota` = 10 — any user can create machine accounts | **Medium** | domain-wide | T1136.001 |
+| 6 | Anonymous SMB sessions allow user enumeration | **Medium** | both DCs | T1087.002 |
+| 7 | Password hint exposed in the account description | **Medium** | `samwell.tarly` | T1087.002 |
+| 8 | LDAP signing and channel binding not enforced | **Medium** | domain-wide | T1557 |
+| 9 | DCSync available to a compromised account | **Critical** | `north.sevenkingdoms.local` | T1003.006 |
+| 10 | `krbtgt` compromise — inter-realm Golden Ticket | **Critical** | forest | T1558.001 |
 
-Each finding in [the report](report/goad-light-part1.md#4-findings) is mapped to MITRE ATT&CK, followed by concrete remediation and detection guidance.
+Every finding is mapped to MITRE ATT&CK and paired with concrete remediation and detection guidance in the reports.
+
+## Reports
+
+| Part | Covers | Link |
+|---|---|---|
+| **1** | Recon → anonymous enumeration → AS-REP Roasting → Kerberoasting | [report/goad-light-part1.md](report/goad-light-part1.md) |
+| **2** | Credential validation → MAQ → RBCD → DCSync → Golden Ticket | [report/goad-light-part2.md](report/goad-light-part2.md) |
 
 ## Repository structure
 
 ```
 goad-light/
-├── README.md                     ← you are here
+├── README.md                       ← you are here
 ├── report/
-│   └── goad-light-part1.md       ← full write-up: recon → credential access
-└── assets/                       ← 21 screenshots, numbered in reading order
+│   ├── goad-light-part1.md         ← recon → credential access
+│   └── goad-light-part2.md         ← domain admin → golden ticket
+└── assets/                         ← 33 screenshots, numbered in reading order
     ├── 01-root-shell.png
-    ├── 02-nxc-smb-sweep.png
     ├── ...
-    └── 21-credential-reuse-check.png
+    └── 33-golden-ticket-pwn3d.png
 ```
 
 ## Skills demonstrated
 
-`NetExec` · `Nmap` · `enum4linux` · `mitm6` · `Impacket (GetNPUsers / GetUserSPNs)` · `John the Ripper` · Kerberos abuse (`AS-REP Roasting`, `Kerberoasting`) · SMB enumeration · null sessions · output analysis and reporting · remediation mapping to MITRE ATT&CK
+`NetExec` · `Nmap` · `enum4linux` · `mitm6` · `Impacket (GetNPUsers, GetUserSPNs, addcomputer, rbcd, getST, ticketer, secretsdump, lookupsid)` · `John the Ripper` · `Evil-WinRM` · `BloodHound` · Kerberos abuse (`AS-REP Roasting`, `Kerberoasting`, `Golden Ticket`, SID history) · `MachineAccountQuota` · RBCD · DCSync · cross-domain trust abuse · output analysis and reporting · remediation and detection mapping
 
 ## Scope and ethics
 
@@ -71,4 +105,4 @@ This is a learning artefact, not an attack kit. Do not run any of this against s
 
 ## Status
 
-**Part 1 of 2.** Part 2 covers MSSQL, `SeImpersonatePrivilege` → PrintSpoofer → `SYSTEM`, BloodHound path analysis and cross-domain lateral movement.
+Both parts complete: the lab is fully compromised, from an empty subnet to the forest root.

@@ -1,0 +1,24 @@
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Obsidian / editors
+.obsidian/
+.vscode/
+.idea/
+
+# Lab artefacts that must never be committed
+*.ccache
+*.kirbi
+*.hash
+*.pot
+*.potfile
+loot/
+secrets/
+*.ovpn
+*.pcap
+
+# Python
+__pycache__/
+*.pyc

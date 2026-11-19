@@ -262,7 +262,9 @@ The TGS hash cracked successfully — the password behind `jon.snow` is a dictio
 
 ![John recovering the password](../assets/21-credential-reuse-check.png)
 
-**An honest note on validation.** The recovered password was checked against SMB and WinRM across the subnet, and the validation returned `STATUS_LOGON_FAILURE` — the credential did not authenticate. Possible causes: password rotation after the ticket was issued, an account state restriction, or a stale ticket. The cracking step itself is sound; the follow-up validation is where Part 2 picks the thread back up.
+**An honest note on validation.** The recovered password was checked against SMB and WinRM across the subnet, and the validation returned `STATUS_LOGON_FAILURE` — on the surface, the credential did not authenticate. I left that result in the report instead of hiding it, and it turned out to be the most useful paragraph here: the failure was not the credential. `KINGSLANDING` belongs to the other domain, and the `CASTELBLACK` WinRM check was a transport timeout, not a rejection. The password was valid all along — for LDAP.
+
+[Part 2](goad-light-part2.md) starts exactly there: the credential works, and the next step is `MachineAccountQuota`.
 
 ## 4. Findings
 
@@ -303,7 +305,10 @@ Severity is my own assessment for this lab, based on exploitability and the leve
 
 Part 2 continues from here:
 
-- MSSQL enumeration and exploitation using the `sql_svc` account;
-- privilege escalation on a foothold via `SeImpersonatePrivilege` → PrintSpoofer → `SYSTEM`;
-- BloodHound collection and analysis of the shortest path to Domain Admin;
-- lateral movement between the two domains and a full write-up of the compromise chain.
+- credential validation revisited — why SMB says no and LDAP says yes;
+- `MachineAccountQuota` and a machine account created by a service account;
+- Resource-Based Constrained Delegation to a local Administrator hash;
+- DCSync and the `krbtgt` hash;
+- a Golden Ticket carrying the parent domain's Enterprise Admins SID, accepted on the forest root.
+
+→ **[Part 2: Domain Admin, DCSync and a Golden Ticket](goad-light-part2.md)**
