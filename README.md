@@ -95,7 +95,7 @@ goad-light/
 
 ## Skills demonstrated
 
-`NetExec` · `Nmap` · `enum4linux` · `mitm6` · `Impacket (GetNPUsers, GetUserSPNs, addcomputer, rbcd, getST, ticketer, secretsdump, lookupsid)` · `John the Ripper` · `Evil-WinRM` · `BloodHound` · Kerberos abuse (`AS-REP Roasting`, `Kerberoasting`, `Golden Ticket`, SID history) · `MachineAccountQuota` · RBCD · DCSync · cross-domain trust abuse · output analysis and reporting · remediation and detection mapping
+`NetExec` · `Nmap` · `enum4linux` · `mitm6` · `Impacket (GetNPUsers, GetUserSPNs, addcomputer, rbcd, getST, ticketer, secretsdump, lookupsid)` · `John the Ripper` · `Evil-WinRM` · Kerberos abuse (`AS-REP Roasting`, `Kerberoasting`, `Golden Ticket`, SID history) · `MachineAccountQuota` · RBCD · DCSync · cross-domain trust abuse · output analysis and reporting · remediation and detection mapping
 
 ## Scope and ethics
 

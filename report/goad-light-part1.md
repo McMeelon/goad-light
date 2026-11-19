@@ -98,10 +98,15 @@ After `nxc` identifies the key hosts, I use Nmap to get a complete picture of op
 nmap -sC -sV 192.168.56.10-12,22-23
 ```
 
+<details>
+<summary>📸 Full scan output (4 screenshots)</summary>
+
 ![Nmap scan — host 1](../assets/03-nmap-scan-1.png)
 ![Nmap scan — host 2](../assets/04-nmap-scan-2.png)
 ![Nmap scan — host 3](../assets/05-nmap-scan-3.png)
 ![Nmap scan — host 4](../assets/06-nmap-scan-4.png)
+
+</details>
 
 ### 2.3. Domain controllers via DNS SRV records
 
